@@ -1,3 +1,4 @@
 bin/
 dlls/
 obj/
+NuGet.Config
