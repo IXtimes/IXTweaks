@@ -1,9 +1,0 @@
-E:\Unity Projects\Unity Mods\IXTweaks\bin\Debug\netstandard2.1\IXtimes.IXTweaks.deps.json
-E:\Unity Projects\Unity Mods\IXTweaks\bin\Debug\netstandard2.1\IXtimes.IXTweaks.dll
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXTweaks.csproj.AssemblyReference.cache
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\MyPluginInfo.cs
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXTweaks.GeneratedMSBuildEditorConfig.editorconfig
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXTweaks.AssemblyInfoInputs.cache
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXTweaks.AssemblyInfo.cs
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXTweaks.csproj.CoreCompileInputs.cache
-E:\Unity Projects\Unity Mods\IXTweaks\obj\Debug\netstandard2.1\IXtimes.IXTweaks.dll
