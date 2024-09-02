@@ -16,10 +16,14 @@
         <LangVersion>latest</LangVersion>
     </PropertyGroup>
 
-    <!-- Project References -->
+    <!-- Assembly References -->
     <ItemGroup>
         <Reference Include="Assembly-CSharp" HintPath=".../dlls/Assembly-CSharp.dll" Publicize="true"/>
+        <Reference Include="MMHOOK_Assembly-CSharp" HintPath=".../dlls/MMHOOK_Assembly-CSharp.dll" Publicize="true"/>
         <Reference Include="UnityEngine" HintPath=".../dlls/UnityEngine.dll" Publicize="true"/>
+        <Reference Include="CSync">
+            <HintPath>$(LC_PLUGIN_PATH)/Sigurd-CSync/CSync/com.sigurd.csync.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
     <!-- Enable Nullable for better IDE null-checking -->
@@ -54,6 +58,9 @@
         <PackageReference Include="LethalCompany.GameLibs.Steam" Version="*-*" PrivateAssets="all"/>
         <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" PrivateAssets="all"/>
         <PackageReference Include="TeamBMX.LobbyCompatibility" Version="1.*" PrivateAssets="all"/>
+        <PackageReference Include="Evaisa.LethalLib" Version="0.*" />
+        <PackageReference Include="Sigurd.BepInEx.CSync" Version="1.*" PrivateAssets="all"/>
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.1" PrivateAssets="all" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
