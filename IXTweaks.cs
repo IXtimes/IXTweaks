@@ -6,21 +6,31 @@ using BepInEx.Logging;
 using LobbyCompatibility.Attributes;
 using LobbyCompatibility.Enums;
 using MonoMod.Cil;
-using GameNetcodeStuff;
+using LethalLib.Modules;
+using MoreShipUpgrades.API;
 using Mono.Cecil.Cil;
+using System.IO;
+using System.Reflection;
+using IXTweaks.MonoBehaviors;
+using GameNetcodeStuff;
+using MoreShipUpgrades.UpgradeComponents.TierUpgrades.Enemies;
+using MoreShipUpgrades.Managers;
+using Unity.Collections;
 
 namespace IXTweaks;
 
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.HardDependency)]
-[BepInDependency("com.siguard.csync", "4.1.0")]
+[BepInDependency("com.sigurd.csync")]
 [BepInDependency(LethalLib.Plugin.ModGUID)] 
+[BepInDependency(MoreShipUpgrades.Misc.Metadata.GUID, BepInDependency.DependencyFlags.HardDependency)] 
 [LobbyCompatibility(CompatibilityLevel.ClientOnly, VersionStrictness.None)]
 public class IXTweaks : BaseUnityPlugin
 {
     public static IXTweaks Instance { get; private set; } = null!;
     internal new static ManualLogSource Logger { get; private set; } = null!;
     internal static new IXTweaksConfig? Config;
+    public static AssetBundle IXTweaksAssets;
 
     private void Awake() {
         Logger = base.Logger;
@@ -28,6 +38,25 @@ public class IXTweaks : BaseUnityPlugin
 
         // Load config
         Config = new IXTweaksConfig(base.Config);
+
+        // Load assets
+        string sAssemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+        IXTweaksAssets = AssetBundle.LoadFromFile(Path.Combine(sAssemblyLocation, "ixtweaks"));
+        if (IXTweaksAssets == null) {
+            Logger.LogError("Failed to load custom assets."); // ManualLogSource for your plugin
+            return;
+        }  
+
+        // Basic item imports
+        RegisterItem("JeremiahTheSlug.asset", 30, "Assets/IXTweaks/Scraps/");
+        RegisterItem("NyQuil.asset", 2000, "Assets/IXTweaks/Scraps/");
+        RegisterHunterDrop("HygrodereSample.asset", "Blob", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("KidnapperFoxSample.asset", "Bush Wolf", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("NutcrackerSample.asset", "Nutcracker", "Assets/IXTweaks/Samples/");
+
+        // Register items that take a little more work for some special payoff ;)
+        RegisterSpecialItems();
 
         // Add patches
         Patch();
@@ -39,17 +68,200 @@ public class IXTweaks : BaseUnityPlugin
 
         Logger.LogDebug("Patching...");
 
-        // Add patch for kill on sprint depletion
-        On.GameNetcodeStuff.PlayerControllerB.Update += MyPatch;
-        // Add patch for emoting whenever
-        On.GameNetcodeStuff.PlayerControllerB.CheckConditionsForEmote += EmotePatch;
+        // Slime hunter patches
+        On.BlobAI.HitEnemy += DropSampleOnHappy;
+        IL.BlobAI.HitEnemy += PissedPatch;
+        On.BlobAI.OnCollideWithPlayer += PissedOffInstaKill;
+        On.BlobAI.Update += SlimeGas;
 
-        // IL patch for jump depending on crouch state
-        IL.GameNetcodeStuff.PlayerControllerB.Jump_performed += IL_JumpPatch;
-        // IL patch for slimes being dicks
-        IL.BlobAI.OnCollideWithPlayer += IL_BlobPatch;
+        // Invinsible enemy wrapper patches
+        IL.EnemyAI.KillEnemy += InvinsiblePatch;
+        On.EnemyAI.HitEnemy += DamageWrapperIfApplicable;
+        On.EnemyAI.Start += ApplyWrapperOnAwake;
 
         Logger.LogDebug("Finished patching!");
+    }
+
+    private static void ApplyWrapperOnAwake(On.EnemyAI.orig_Start orig, EnemyAI self) {
+        // Initalize enemy AI
+        orig(self);
+
+        // If the enemy is of a certain AI bracket, add the wrapper to them
+        if (self.GetComponent<SpringManAI>())
+            self.gameObject.AddComponent<InvinsibleEnemyWrapper>();
+    }
+
+
+    private static void DamageWrapperIfApplicable(On.EnemyAI.orig_HitEnemy orig, EnemyAI self, int force, PlayerControllerB playerWhoHit, bool playHitSFX, int hitID) {
+        // Reg call
+        orig(self, force, playerWhoHit, playHitSFX, hitID);
+
+        // If this AI has a health wrapper call the damage event within it
+        if (self.GetComponent<InvinsibleEnemyWrapper>() != null)
+            self.GetComponent<InvinsibleEnemyWrapper>().DamageWrapper(force, playerWhoHit);
+    }
+
+
+    private static void InvinsiblePatch(ILContext il) {
+        // Create a cursor off of the context
+        ILCursor c = new(il);
+
+        // Find the invinsible condition and remove it
+        c.GotoNext(
+            MoveType.After,
+            x => x.MatchLdarg(0),
+            x => x.MatchLdfld<EnemyAI>("enemyType"),
+            x => x.MatchLdfld<EnemyType>("canDie"),
+            x => x.MatchBrtrue(out _)
+        );
+
+        c.Index -= 4;
+        for (int i = 0; i < 5; i++) {
+            Logger.LogDebug(c.ToString());
+            c.Remove();
+        }
+
+        // Insert a debug statement here to ensure patch was successful
+        c.Emit(OpCodes.Ldarg_0);
+        c.EmitDelegate<Action<EnemyAI>>(self => {
+            Logger.LogDebug($"Called Kill Enemy on {self.gameObject.name}!");
+        });
+    }
+
+
+    private static void PissedPatch(ILContext il) {
+        // Create a cursor off of the context
+        ILCursor c = new(il);
+
+        // First, navigate the cursor to the instruction after the angered timer is set to insert our new logic
+        c.GotoNext(
+            MoveType.After,
+            x => x.MatchLdarg(0),
+            x => x.MatchLdcR4(18),
+            x => x.MatchStfld<BlobAI>("angeredTimer")
+        );
+
+        // Remove this statement
+        c.Index -= 2;
+        for(int i = 0; i < 3; i++)
+            c.Remove();
+
+        // Insert logic for only setting anger if not pissed off
+        c.Emit(OpCodes.Ldarg_0);
+        c.EmitDelegate<Action<BlobAI>>(self => {
+            if (self.angeredTimer < 1000f)
+                self.angeredTimer = 18f;
+        });
+    }
+
+
+    private static void SlimeGas(On.BlobAI.orig_Update orig, BlobAI self) {
+        // Perform normal logic
+        orig(self);
+
+        // Check if the slime is pissed off
+        if(self.angeredTimer > 1000f) {
+            // Ensure fast persuit speed
+            self.agent.speed = 3f;
+        }
+    }
+
+
+    private static void PissedOffInstaKill(On.BlobAI.orig_OnCollideWithPlayer orig, BlobAI self, Collider other) {
+        // Check if the slime is pissed off and collided with the player
+        PlayerControllerB playerControllerB = self.MeetsStandardPlayerCollisionConditions(other);
+        if(self.angeredTimer > 1000f && playerControllerB != null) {
+            playerControllerB.DamagePlayer(1000);
+            if (playerControllerB.isPlayerDead) {
+                self.SlimeKillPlayerEffectServerRpc((int)playerControllerB.playerClientId);
+            }
+        }
+
+        // Perform normal logic
+        orig(self, other);
+    }
+
+    private static void DropSampleOnHappy(On.BlobAI.orig_HitEnemy orig, BlobAI self, int force, PlayerControllerB playerWhoHit, bool playHitSFX, int hitID) {
+        // Perform normal logic
+        orig(self, force, playerWhoHit, playHitSFX, hitID);
+
+        // Check if the slime WAS tammed before this hit
+        Logger.LogDebug("Hit Slime");
+        Logger.LogDebug((self.angeredTimer - 19f));
+        if(self.tamedTimer > 0f && (self.angeredTimer - 19f) <= 0f) { // Not messin up the condition dis time :)
+            // In such case, make the slime permanantly angry
+            Logger.LogInfo("Slime was habby, make him angy >:(");
+            self.angeredTimer = Mathf.Infinity;
+            self.tamedTimer = 0f;
+            self.thisSlimeMaterial.SetColor(Shader.PropertyToID("_Gradient_Color"), Color.red);
+            self.thisSlimeMaterial.SetFloat("_Frequency", 8f);
+            self.thisSlimeMaterial.SetFloat("_Ripple_Density", self.slimeJiggleDensity * 3f);
+            self.thisSlimeMaterial.SetFloat("_Amplitude", self.slimeJiggleAmplitude * 3f);
+            GameNetworkManager.Instance.localPlayerController.JumpToFearLevel(0.4f);
+
+            // SFX off of the slimes's audio source
+            AudioSource slimeSource = self.GetComponent<AudioSource>();
+            AudioClip angrySlimeSFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/AngrySlimeGurgle.wav");
+            slimeSource.PlayOneShot(angrySlimeSFX);
+            WalkieTalkie.TransmitOneShotAudio(slimeSource, angrySlimeSFX, 100f);
+            RoundManager.Instance.PlayAudibleNoise(self.transform.position, 10f, 100f, 0, StartOfRound.Instance.hangarDoorsClosed);
+
+            // Then, using LGU drop a slime sample if the player has the provided hunter conditions met
+            if (MoreShipUpgrades.Misc.Upgrades.BaseUpgrade.GetActiveUpgrade(Hunter.UPGRADE_NAME) && Hunter.CanHarvest("blob")) {
+                Logger.LogInfo("Slime drop loot for hunter");
+                ItemManager.Instance.SpawnSample("blob", self.transform.position);
+            }
+        }
+    }
+
+
+    private void RegisterSpecialItems() {
+        // Windex is a spray item cause... I mean it is a spray bottle :p
+        Item windex = RegisterItem("Windex.asset", 2000, "Assets/IXTweaks/Scraps/");
+
+        // Apply spray script and populate it appropriately
+        FakeSprayItem script = windex.spawnPrefab.AddComponent<FakeSprayItem>();
+        script.grabbable = true;
+        script.grabbableToEnemies = true;
+        script.itemProperties = windex;
+
+        script.fullSprayEffect = script.transform.GetChild(2);
+        script.emptySprayEffect = script.transform.GetChild(2).GetChild(1).GetComponent<ParticleSystem>();
+        script.spraySFXr = script.transform.GetChild(1).GetComponent<AudioSource>();
+        Logger.LogDebug(string.Join(", ", IXTweaksAssets.GetAllAssetNames()));
+        script.spraySFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/WeedKillerSpray.mp3");
+        script.emptySFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/WeedKillerEmpty.mp3");
+    }
+
+    private void RegisterHunterDrop(string itemName, string monsterName, string pathToItem="Assets/IXTweaks/Samples/")
+    {
+        // loads asset from the asset bundle we provided
+        Item item = IXTweaksAssets.LoadAsset<Item>(pathToItem + itemName);
+        if (item == null)
+            Logger.LogError($"Failed to load {itemName} from IXTweaksAssets");
+        else
+        {
+            HunterSamples.RegisterSample(item, monsterName, 3, true, true, 100);
+        }
+    }
+
+    private Item RegisterItem(string itemName, int weight, string pathToItem="Assets/IXTweaks/Scraps/")
+    {
+        // loads asset from the asset bundle we provided
+        Item item = IXTweaksAssets.LoadAsset<Item>(pathToItem + itemName);
+        if (item == null)
+            Logger.LogError($"Failed to load {itemName} from IXTweaksAssets");
+        else
+        {
+            Items.RegisterScrap(item, weight, Levels.LevelTypes.All);
+            NetworkPrefabs.RegisterNetworkPrefab(item.spawnPrefab);
+
+            // Provided we imported into LethalLib successfully, we can return our item
+            return item;
+        }
+
+        // Return null if the item is imported unsucessfully
+        return null;
     }
 
     private static void IL_BlobPatch(ILContext il)
@@ -72,58 +284,6 @@ public class IXTweaks : BaseUnityPlugin
 
         // Debug to show the insertion worked
         Logger.LogInfo(il.ToString());
-    }
-
-
-    private static void IL_JumpPatch(ILContext il)
-    {
-        // Create a cursor to trace to the IL that we want to make modifications at
-        ILCursor c = new(il);
-
-        // Find this IL which is where we want to place our cursor BEFORE
-        c.GotoNext(
-            x => x.MatchLdarg(0), // Match: 'IL_00b5: ldarg.0'
-            x => x.MatchLdcR4(0.0f), // Match 'IL_00b6: ldc.r4 0.0'
-            x => x.MatchStfld<PlayerControllerB>(nameof(PlayerControllerB.playerSlidingTimer))
-        );
-
-        // With the position found, we can insert C# logic directly and it will get compiled to IL properly
-        // First, we need to load 'this' onto the stack so we can perform this task appropriately
-        c.Emit(OpCodes.Ldarg_0); // Load arg 0, 'this', onto the stack
-        // Now we can inject our C# code
-        c.EmitDelegate<Action<PlayerControllerB>>((self) =>
-            {
-                Logger.LogInfo("Hello from C# code in IL!");
-
-                if (self.isSprinting)
-                    self.jumpForce = 30f;
-                else
-                    self.jumpForce = 13f; // this is the default value of jumpForce
-            }
-        );
-
-        // Debug to show the insertion worked
-        Logger.LogInfo(il.ToString());
-    }
-
-
-    private static bool EmotePatch(On.GameNetcodeStuff.PlayerControllerB.orig_CheckConditionsForEmote orig, GameNetcodeStuff.PlayerControllerB self)
-    {
-        bool originalResult = orig(self);
-        Logger.LogInfo("Would emoting be normally allowed? " + originalResult);
-
-        return true;
-    }
-
-
-    private static void MyPatch(On.GameNetcodeStuff.PlayerControllerB.orig_Update orig, GameNetcodeStuff.PlayerControllerB self) {
-        // Original code behavior
-        orig(self);
-
-        // Check if the player is exhausted
-        if (self.isExhausted)
-            // Kill the player >:)
-            self.KillPlayer(Vector3.zero);
     }
 
 

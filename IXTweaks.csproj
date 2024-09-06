@@ -24,6 +24,10 @@
         <Reference Include="CSync">
             <HintPath>$(LC_PLUGIN_PATH)/Sigurd-CSync/CSync/com.sigurd.csync.dll</HintPath>
         </Reference>
+        <Reference Include="MoreShipUpgrades" Publicize="true">
+            <HintPath>$(LC_PLUGIN_PATH)\WhiteSpike\MoreShipUpgrades.dll</HintPath>
+            <Private>false</Private>
+          </Reference>
     </ItemGroup>
 
     <!-- Enable Nullable for better IDE null-checking -->

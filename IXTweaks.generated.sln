@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IXTweaks", "IXTweaks.csproj", "{5531A7BB-19C1-4582-A03D-B3FC095CEB1F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IXTweaks", "IXTweaks.csproj", "{3ABE3A84-0EA9-41EE-A5C6-A915D49DD311}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5531A7BB-19C1-4582-A03D-B3FC095CEB1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5531A7BB-19C1-4582-A03D-B3FC095CEB1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5531A7BB-19C1-4582-A03D-B3FC095CEB1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5531A7BB-19C1-4582-A03D-B3FC095CEB1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3ABE3A84-0EA9-41EE-A5C6-A915D49DD311}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3ABE3A84-0EA9-41EE-A5C6-A915D49DD311}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3ABE3A84-0EA9-41EE-A5C6-A915D49DD311}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3ABE3A84-0EA9-41EE-A5C6-A915D49DD311}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {3B209A03-9DFF-4710-B33D-53F3AEBE2AA9}
+		SolutionGuid = {DA497FD0-2450-445A-8F49-49007205B303}
 	EndGlobalSection
 EndGlobal
