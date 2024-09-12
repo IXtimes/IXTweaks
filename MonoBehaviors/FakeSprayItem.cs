@@ -16,8 +16,15 @@ namespace IXTweaks.MonoBehaviors
         public AudioClip emptySFX;
         public override void ItemActivate(bool used, bool buttonDown = true) {
             base.ItemActivate(used, buttonDown);
-            if (!(GameNetworkManager.Instance.localPlayerController == null) && internalTimer <= 0f) {
-                PlayServerEffectRpc();
+
+            if (!IsOwner)
+                return;
+
+            if (internalTimer <= 0f) {
+                if (IsHost)
+                    PlayClientEffectRpc();
+                else
+                    PlayServerEffectRpc();
 
                 // Inc usage timer
                 internalTimer += 1f;
@@ -41,7 +48,7 @@ namespace IXTweaks.MonoBehaviors
                 // Play sfx off of SFXer
                 spraySFXr.PlayOneShot(spraySFX);
                 WalkieTalkie.TransmitOneShotAudio(spraySFXr, spraySFX, 100f);
-                RoundManager.Instance.PlayAudibleNoise(base.transform.position, 10f, 100f, 0, isInElevator && StartOfRound.Instance.hangarDoorsClosed);
+                RoundManager.Instance.PlayAudibleNoise(transform.position, 10f, 100f, 0, isInElevator && StartOfRound.Instance.hangarDoorsClosed);
 
                 // Decrease spray by 5%
                 remainingSpray -= 5f;

@@ -16,6 +16,9 @@ using GameNetcodeStuff;
 using MoreShipUpgrades.UpgradeComponents.TierUpgrades.Enemies;
 using MoreShipUpgrades.Managers;
 using Unity.Collections;
+using IL;
+using UnityEngine.Scripting;
+using MoreShipUpgrades.UpgradeComponents.Items;
 
 namespace IXTweaks;
 
@@ -51,9 +54,10 @@ public class IXTweaks : BaseUnityPlugin
         // Basic item imports
         RegisterItem("JeremiahTheSlug.asset", 30, "Assets/IXTweaks/Scraps/");
         RegisterItem("NyQuil.asset", 2000, "Assets/IXTweaks/Scraps/");
-        RegisterHunterDrop("HygrodereSample.asset", "Blob", "Assets/IXTweaks/Samples/");
-        RegisterHunterDrop("KidnapperFoxSample.asset", "Bush Wolf", "Assets/IXTweaks/Samples/");
-        RegisterHunterDrop("NutcrackerSample.asset", "Nutcracker", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("HygrodereChunk.asset", "Blob", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("NutcrackerHead.asset", "Nutcracker", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("CoilHead.asset", "Spring", "Assets/IXTweaks/Samples/");
+        RegisterHunterDrop("JesterBox.asset", "Jester", "Assets/IXTweaks/Samples/");
 
         // Register items that take a little more work for some special payoff ;)
         RegisterSpecialItems();
@@ -75,8 +79,11 @@ public class IXTweaks : BaseUnityPlugin
         On.BlobAI.Update += SlimeGas;
 
         // Invinsible enemy wrapper patches
-        IL.EnemyAI.KillEnemy += InvinsiblePatch;
+        //IL.EnemyAI.KillEnemy += InvinsiblePatch;
+
+        Logger.LogDebug("Attempting Damage Wrapper");
         On.EnemyAI.HitEnemy += DamageWrapperIfApplicable;
+        Logger.LogDebug("Attempting Awake Wrapper");
         On.EnemyAI.Start += ApplyWrapperOnAwake;
 
         Logger.LogDebug("Finished patching!");
@@ -87,8 +94,14 @@ public class IXTweaks : BaseUnityPlugin
         orig(self);
 
         // If the enemy is of a certain AI bracket, add the wrapper to them
-        if (self.GetComponent<SpringManAI>())
-            self.gameObject.AddComponent<InvinsibleEnemyWrapper>();
+        if (self.GetComponent<SpringManAI>()) 
+            self.gameObject.AddComponent<InvinsibleEnemyWrapper>().internalHealth = 4;
+        if (self.GetComponent<JesterAI>())
+            self.gameObject.AddComponent<InvinsibleEnemyWrapper>().internalHealth = 6;
+        if (self.GetComponent<PufferAI>())
+            self.gameObject.AddComponent<InvinsibleEnemyWrapper>().internalHealth = 3;
+        if (self.GetComponent<ClaySurgeonAI>())
+            self.gameObject.AddComponent<InvinsibleEnemyWrapper>().internalHealth = 4;
     }
 
 
@@ -109,23 +122,23 @@ public class IXTweaks : BaseUnityPlugin
         // Find the invinsible condition and remove it
         c.GotoNext(
             MoveType.After,
+            x => x.MatchLdarg(1),
+            x => x.MatchBrfalse(out _),
             x => x.MatchLdarg(0),
             x => x.MatchLdfld<EnemyAI>("enemyType"),
-            x => x.MatchLdfld<EnemyType>("canDie"),
-            x => x.MatchBrtrue(out _)
+            x => x.MatchLdfld<EnemyType>("canBeDestroyed"),
+            x => x.MatchBrfalse(out _)
         );
 
-        c.Index -= 4;
-        for (int i = 0; i < 5; i++) {
+        c.Index -= 6;
+        c.Emit(OpCodes.Nop);
+        Logger.LogDebug(c.ToString());
+        for (int i = 0; i < 27; i++) {
             Logger.LogDebug(c.ToString());
             c.Remove();
         }
 
-        // Insert a debug statement here to ensure patch was successful
-        c.Emit(OpCodes.Ldarg_0);
-        c.EmitDelegate<Action<EnemyAI>>(self => {
-            Logger.LogDebug($"Called Kill Enemy on {self.gameObject.name}!");
-        });
+        Logger.LogDebug(c.ToString());
     }
 
 
@@ -231,18 +244,35 @@ public class IXTweaks : BaseUnityPlugin
         Logger.LogDebug(string.Join(", ", IXTweaksAssets.GetAllAssetNames()));
         script.spraySFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/WeedKillerSpray.mp3");
         script.emptySFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/WeedKillerEmpty.mp3");
+
+        // Scissors is a powerful weapon dropped by the clay surgeon
+        Item scissors = RegisterHunterDrop("Scissors.asset", "Barber", "Assets/IXTweaks/Samples/");
+        Scissors sci = scissors.spawnPrefab.AddComponent<Scissors>();
+        Destroy(scissors.spawnPrefab.GetComponent<MonsterSample>());
+        sci.grabbable = true;
+        sci.grabbableToEnemies = true;
+        sci.itemProperties = scissors;
+
+        sci.sfx = sci.transform.GetChild(1).GetComponent<AudioSource>();
+        Logger.LogDebug(sci.sfx);
+        sci.anim = sci.transform.GetChild(1).GetComponent<Animator>();
+        Logger.LogDebug(sci.anim);
+        sci.snipSFX = IXTweaksAssets.LoadAsset<AudioClip>("Assets/IXTweaks/Assets/SFXs/Snip.mp3");
     }
 
-    private void RegisterHunterDrop(string itemName, string monsterName, string pathToItem="Assets/IXTweaks/Samples/")
+    private Item RegisterHunterDrop(string itemName, string monsterName, string pathToItem="Assets/IXTweaks/Samples/")
     {
         // loads asset from the asset bundle we provided
         Item item = IXTweaksAssets.LoadAsset<Item>(pathToItem + itemName);
         if (item == null)
             Logger.LogError($"Failed to load {itemName} from IXTweaksAssets");
-        else
-        {
+        else {
             HunterSamples.RegisterSample(item, monsterName, 3, true, true, 100);
+
+            return item;
         }
+
+        return null;
     }
 
     private Item RegisterItem(string itemName, int weight, string pathToItem="Assets/IXTweaks/Scraps/")
