@@ -34,4 +34,9 @@ In addition there are a few goofy scrap items that you can find as well:
 + Paper Airplane
 + 7-Leaf Clover
 
+ # Sound Replacements
+ Lastly, I added a few sound replacements for some of the monster's ambient noises in the game. Namely, these include:
+ + Hoarding Bug ambient and anger noises
+ + Bracken ambient, anger and neck snap noise
+
 Stay tuned for more as I *may* develop this mod further :)
