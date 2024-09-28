@@ -11,9 +11,9 @@ namespace IXTweaks.MonoBehaviors
     {
         public int internalHealth;
 
-        public void DamageWrapper(int damage, PlayerControllerB source = null) {
-            // Subtract the damage dealt from the wrapper
-            internalHealth -= damage;
+        public void DamageWrapper(int damage, bool strong, PlayerControllerB source = null) {
+            // Subtract the damage dealt from the wrapper (if enemy is not strong, otherwise make it 1)
+            internalHealth -= strong ? 1 : damage;
             Debug.Log(gameObject.name + " HP: " + internalHealth);
 
             // If the internal health is 0, kill this enemy
@@ -38,10 +38,10 @@ namespace IXTweaks.MonoBehaviors
                 }
                 */
 
-                if(self)
-                    if (MoreShipUpgrades.Misc.Upgrades.BaseUpgrade.GetActiveUpgrade(Hunter.UPGRADE_NAME) && Hunter.CanHarvest("barber")) {
-                        ItemManager.Instance.SpawnSample("barber", transform.position);
-                }
+                //if(self)
+                //    if (MoreShipUpgrades.Misc.Upgrades.BaseUpgrade.GetActiveUpgrade(Hunter.UPGRADE_NAME) && Hunter.CanHarvest("barber")) {
+                        //ItemManager.Instance.SpawnSample("barber", transform.position);
+                //}
 
                 GetComponent<EnemyAI>().KillEnemy(true);
                 return;

@@ -41,8 +41,8 @@ namespace IXTweaks.MonoBehaviors
             if (playerHeldBy == null)
                 return;
 
-            RaycastHit[] objectsHitBySnip = Physics.SphereCastAll(playerHeldBy.gameplayCamera.transform.position + playerHeldBy.gameplayCamera.transform.right * -0.55f, 1.2f, playerHeldBy.gameplayCamera.transform.forward, 1.5f, 1084754248);
-            RaycastHit[] hits = Physics.SphereCastAll(playerHeldBy.gameplayCamera.transform.position + playerHeldBy.gameplayCamera.transform.right * -0.55f, 1.2f, playerHeldBy.gameplayCamera.transform.forward, 1.5f, 1084754248);
+            RaycastHit[] objectsHitBySnip = Physics.SphereCastAll(playerHeldBy.gameplayCamera.transform.position + playerHeldBy.gameplayCamera.transform.right * -0.25f, 0.6f, playerHeldBy.gameplayCamera.transform.forward, 1.5f, 1084754248);
+            RaycastHit[] hits = Physics.SphereCastAll(playerHeldBy.gameplayCamera.transform.position + playerHeldBy.gameplayCamera.transform.right * -0.25f, 0.6f, playerHeldBy.gameplayCamera.transform.forward, 1.5f, 1084754248);
             List<RaycastHit> objectsHitBySnipList = objectsHitBySnip.OrderBy((RaycastHit x) => x.distance).ToList();
             List<EnemyAI> list = new List<EnemyAI>();
             Debug.Log(string.Join(", ", objectsHitBySnipList.Select(hit => hit.transform.gameObject.name).ToList()));
@@ -58,8 +58,11 @@ namespace IXTweaks.MonoBehaviors
                 }
 
                 PlayerControllerB other = val.transform.GetComponent<PlayerControllerB>();
-                if(other != null && other != playerHeldBy)
-                    other.KillPlayer(Vector3.up * 14f, spawnBody: true, CauseOfDeath.Snipped, 7);
+                Debug.Log(other.gameObject.name + " =? " + playerHeldBy.gameObject.name);
+                if (other != null && other != playerHeldBy) {
+                    Debug.Log("Kill other player");
+                    other.DamagePlayer(1000, true, true, CauseOfDeath.Snipped, 7, false, Vector3.up * 14f);
+                }
             }
         }
 
