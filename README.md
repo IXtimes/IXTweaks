@@ -19,6 +19,8 @@ Though this mod DOES add killing functionality to some of the invincible monster
 + Jester : 5HP (Strong)
 + Spore Lizard : 4HP
 
+# Project TBS Scraps
+
 In addition there are a few goofy scrap items that you can find as well:
 + Jeremiah the Slug
 + NyQuil
